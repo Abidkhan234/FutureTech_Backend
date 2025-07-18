@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import mainRoute from './Routes/mainRoute.js'
 import mongoose from './DB/index.js';
+import "dotenv/config"
 
 const app = express();
 
@@ -17,7 +18,10 @@ db.once("open", () => {
     console.log("DB Connected");
 })
 
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true
+}));
 
 app.use('/api', express.static('Public'));
 
