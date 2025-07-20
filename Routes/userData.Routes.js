@@ -62,7 +62,7 @@ userData.post("/login", async (req, res) => {
             userId: user._id,
             email: user.email,
             avatarpath: user.avatarPath
-        }, process.env.SECERET_KEY, { expiresIn: '1h' });
+        }, process.env.SECERET_KEY, { expiresIn: '2h' });
 
         return res.status(200).send({ status: 200, message: "Logged In Successfull", token });
     } catch (error) {
