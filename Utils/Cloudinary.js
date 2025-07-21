@@ -16,11 +16,6 @@ const uploadFileToCloudinary = async (localFilePath) => {
         }
         const publicFile = await cloudinary.uploader.upload(localFilePath, {
             folder: "Blog_Web_Images",
-            transformation: [
-                { width: 600, height: 400, crop: "fill", gravity: "auto" },
-                { quality: "auto" }, // optimize image
-                { fetch_format: "" } // choose best format like WebP
-            ]
         });
 
         if (!publicFile) {

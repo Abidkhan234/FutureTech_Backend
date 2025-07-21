@@ -26,7 +26,7 @@ userData.post("/register", upload.single('avatar'), async (req, res) => {
 
         const saveUser = new User({
             ...req.body,
-            avatarPath: avatarPath?.url || "/Images/Default-icon/profile.png",
+            avatarPath: avatarPath?.url || "/Images",
             password,
         });
 
