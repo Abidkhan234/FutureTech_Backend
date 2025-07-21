@@ -106,7 +106,7 @@ postData.put('/like-posts/:id', auth, async (req, res) => {
 
         await post.save();
 
-        res.status(200).send({ status: 200, message: likedPost ? "Post unliked" : "Post liked", isLike: likedPost });
+        res.status(200).send({ status: 200, message: (likedPost ? "Post unliked" : "Post liked") });
     } catch (error) {
         console.log(error);
         res.status(500).send({ status: 500, message: "Internal Error" })
