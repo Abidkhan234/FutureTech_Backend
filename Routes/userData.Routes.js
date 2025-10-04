@@ -29,7 +29,7 @@ userData.post("/register", upload.single('avatar'), async (req, res) => {
             userName,
             email,
             password: hashPassword,
-            avatarPath: avatarPath?.url,
+            avatarPath: avatarPath?.url ? avatarPath?.url : "/Images",
         });
 
         await saveUser.save();
