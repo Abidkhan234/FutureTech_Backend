@@ -1,6 +1,5 @@
 import express from 'express'
 import upload from '../MiddleWare/MulterConfig.js';
-import fs from "fs-extra"
 import blogPost from "../Schema/postSchema.js"
 import auth from '../MiddleWare/authConfig.js';
 import User from '../Schema/userSchema.js'
@@ -8,7 +7,7 @@ import "dotenv/config"
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
-import uploadFileToCloudinary from "../Utils/Cloudinary.js";
+import { uploadFileToCloudinary, removeFileFromCloudinary } from "../Utils/Cloudinary.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -17,9 +16,13 @@ const postData = express.Router();
 // For getting all post
 postData.get("/", async (req, res) => {
     try {
-        const allPosts = await blogPost.find();
+        const allPosts = await blogPost.find({});
 
-        res.status(200).send(allPosts);
+        if (!allPosts) {
+            return res.status(404).send({ status: 404, message: "No posts found" })
+        }
+
+        res.status(200).send({ status: 200, allPosts });
     } catch (error) {
         console.error(error);
         res.status(500).send({ status: 500, message: "Failed to fetch posts" });
@@ -32,7 +35,7 @@ postData.get("/", async (req, res) => {
 postData.get("/like-posts", auth, async (req, res) => {
     try {
 
-        const { userId } = req.token;
+        const { userId } = req.userData;
 
         const allLikedPosts = await blogPost.find({ isLike: userId });
 
@@ -45,12 +48,15 @@ postData.get("/like-posts", auth, async (req, res) => {
 
 // For only getting liked posts
 
-postData.post('/', upload.single('File'), auth, async (req, res) => {
+postData.post('/add-post', upload.single('File'), auth, async (req, res) => {
+
+    const localFilePath = req.file?.path;
+
     try {
 
-        const filePath = await uploadFileToCloudinary(req.file?.path);
+        const filePath = await uploadFileToCloudinary(localFilePath);
 
-        const { userId } = req.token;
+        const { userId } = req.userData;
 
         const postTime = {
             month: dayjs().tz("Asia/Karachi").format("MMMM"),
@@ -62,13 +68,16 @@ postData.post('/', upload.single('File'), auth, async (req, res) => {
         if (!userId) {
             return res.status(404).send({ status: 404, message: "User not found" });
         } else if (!filePath) {
-            return res.status(400).send({ status: 400, message: "File is required" });
+            return res.status(400).send({ status: 400, message: "Something went wrong while uploading post" });
         }
 
         const userData = await User.findById(userId).select("-password -email");
 
         const newPost = new blogPost({
-            filePath: filePath.url,
+            filePath: {
+                url: filePath.url,
+                public_id: filePath.public_id
+            },
             postTime,
             userData,
             ...req.body,
@@ -76,17 +85,16 @@ postData.post('/', upload.single('File'), auth, async (req, res) => {
 
         await newPost.save();
 
-        res.status(200).send({ status: 200, message: "Data Added Successfully" });
-
+        res.status(201).send({ status: 201, message: "Post Added Successfully" });
     } catch (err) {
         console.error(err);
         res.status(500).send({ status: 500, message: "Internal Server Error" });
     }
 });
 
-postData.put('/like-posts/:id', auth, async (req, res) => {
+postData.patch('/like-posts/:id', auth, async (req, res) => {
     try {
-        const { userId } = req.token;
+        const { userId } = req.userData;
 
         const postId = req.params.id;
 
@@ -113,9 +121,9 @@ postData.put('/like-posts/:id', auth, async (req, res) => {
     }
 })
 
-postData.delete("/:id", auth, async (req, res) => {
+postData.delete("/delete-post/:id", auth, async (req, res) => {
+    const id = req.params.id;
     try {
-        const id = req.params.id;
 
         const post = await blogPost.findOne({ _id: id });
 
@@ -123,26 +131,22 @@ postData.delete("/:id", auth, async (req, res) => {
             return res.status(404).send({ status: 404, message: "Post not found" });
         }
 
-        if (post.filePath) {
-            fs.removeSync(`./${post.filePath}`);
-        }
+        await removeFileFromCloudinary(post.filePath.public_id);
 
-        await blogPost.deleteOne({ _id: id });
+        await blogPost.findByIdAndDelete({ _id: id });
 
         res.status(200).send({ status: 200, message: "Post Deleted Successfully" });
     } catch (error) {
-        console.error(error);
+        console.log(error);
         res.status(500).send({ status: 500, message: "Internal Server Error" });
     }
 });
 
-postData.put("/:id", auth, upload.single('File'), async (req, res) => {
+postData.patch("/update-post/:id", auth, upload.single('File'), async (req, res) => {
     try {
         const id = req.params.id;
 
-        const filePath = await uploadFileToCloudinary(req.file?.path);
-
-        const oldFilePath = await blogPost.findOne({ _id: id });
+        const localFilePath = req.file?.path;
 
         const postTime = {
             month: dayjs().tz("Asia/Karachi").format("MMMM"),
@@ -151,25 +155,59 @@ postData.put("/:id", auth, upload.single('File'), async (req, res) => {
             year: dayjs().tz("Asia/Karachi").format("YYYY"),
         };
 
-        if (!filePath) {
+        const updatedData = {
+            ...req.body,
+            postTime,
+            filePath: {
+                url: null,
+                public_id: null
+            },
+        };
 
-            await blogPost.findByIdAndUpdate(id, {
-                filePath: oldFilePath.filePath, postTime, ...req.body,
-            }, { new: true });
+        if (localFilePath) {
 
-        } else {
+            try {
+                const post = await blogPost.findById(id);
 
-            if (!oldFilePath) {
-                return res.status(404).send({ status: 404, message: "Post not found" });
+                await removeFileFromCloudinary(post.filePath.public_id);
+
+                const filePath = await uploadFileToCloudinary(localFilePath);
+
+                updatedData.filePath.url = filePath.url;
+
+                updatedData.filePath.public_id = filePath.public_id;
+            } catch (error) {
+                console.log("Error while removing and updating image form cloudinary", error);
+                throw error
             }
-
-            await blogPost.findByIdAndUpdate(id, {
-                filePath: filePath.url, postTime, ...req.body,
-            }, { new: true });
 
         }
 
-        return res.status(200).send({ status: 200, message: "Updated Successfully" })
+        const postUpdated = await blogPost.findByIdAndUpdate(id, updatedData, { new: true });
+
+        if (!postUpdated) {
+            return res.status(404).send({ status: 404, message: "Post not found" })
+        }
+
+        // if (!filePath) {
+
+        //     await blogPost.findByIdAndUpdate(id, {
+        //         filePath: oldFilePath.filePath, postTime, ...req.body,
+        //     }, { new: true });
+
+        // } else {
+
+        //     if (!oldFilePath) {
+        //         return res.status(404).send({ status: 404, message: "Post not found" });
+        //     }
+
+        //     await blogPost.findByIdAndUpdate(id, {
+        //         filePath: filePath.url, postTime, ...req.body,
+        //     }, { new: true });
+
+        // }
+
+        res.status(200).send({ status: 200, message: "Updated Successfully", })
     } catch (error) {
         console.log(error);
         return res.status(500).send({ status: 500, message: "Internal Error" });

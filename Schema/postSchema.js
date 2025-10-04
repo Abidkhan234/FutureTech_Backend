@@ -1,5 +1,10 @@
 import mongoose from '../DB/index.js'
 
+const filePathSchema = new mongoose.Schema({
+    url: { type: String, required: true },
+    public_id: { type: String, required: true },
+}, { _id: false })
+
 const postSchema = new mongoose.Schema(
     {
         title: {
@@ -11,10 +16,7 @@ const postSchema = new mongoose.Schema(
             required: true,
         },
 
-        filePath: {
-            type: String,
-            required: true
-        },
+        filePath: filePathSchema,
 
         postTime: {
             type: Object,

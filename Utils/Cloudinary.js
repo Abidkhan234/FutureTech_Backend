@@ -1,12 +1,5 @@
-import { v2 as cloudinary } from 'cloudinary';
-import "dotenv/config"
 import fs from "fs-extra";
-
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_SECERET
-});
+import cloudinary from '../Config/CloudinaryConfig.js'
 
 const uploadFileToCloudinary = async (localFilePath) => {
     try {
@@ -30,7 +23,26 @@ const uploadFileToCloudinary = async (localFilePath) => {
         if (localFilePath) {
             fs.removeSync(localFilePath);
         }
+        throw error
     }
 }
 
-export default uploadFileToCloudinary;
+const removeFileFromCloudinary = async (publicId) => {
+    try {
+
+        if (!publicId) {
+            return;
+        }
+
+        const status = await cloudinary.uploader.destroy(publicId, {
+            folder: "Blog_Web_Images",
+        });
+
+        return status;
+    } catch (error) {
+        console.log(error);
+        throw error
+    }
+}
+
+export { uploadFileToCloudinary, removeFileFromCloudinary };

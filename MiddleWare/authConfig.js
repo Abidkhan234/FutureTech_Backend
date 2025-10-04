@@ -6,18 +6,14 @@ const auth = async (req, res, next) => {
 
         const headers = req.headers["authorization"];
 
-        if (headers == undefined) {
+        if (!headers) {
             return res.status(401).send({ status: 401, message: "Login In First" })
         } else {
-            const token = headers.split(' ')[1];
+            const token = headers?.split(' ')[1];
 
             const userData = jwt.verify(token, process.env.SECERET_KEY);
 
-            if (!userData) {
-                return res.status(400).send({ status: 400, message: "User not found" })
-            }
-
-            req.token = userData;
+            req.userData = userData;
 
             next();
         }
