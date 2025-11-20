@@ -3,7 +3,6 @@ import cors from "cors";
 import mainRoute from "./Routes/mainRoute.js";
 import mongoose from "./DB/index.js";
 import "dotenv/config";
-import rateLimiter from "./Config/rateLimiter.js";
 
 const app = express();
 
@@ -29,7 +28,6 @@ app.use(
   })
 );
 
-app.use(rateLimiter);
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
