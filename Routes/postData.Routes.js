@@ -36,9 +36,9 @@ postData.get("/", async (req, res) => {
 
 postData.get("/like-posts", auth, async (req, res) => {
   try {
-    const { userId } = req.userData;
+    const { _id } = req.userData;
 
-    const allLikedPosts = await blogPost.find({ isLike: userId });
+    const allLikedPosts = await blogPost.find({ isLike: _id });
 
     res.status(200).send({ status: 200, allLikedPosts });
   } catch (error) {
@@ -49,13 +49,13 @@ postData.get("/like-posts", auth, async (req, res) => {
 
 // For only getting liked posts
 
-postData.post("/add-post", auth, upload.single("File"), async (req, res) => {
+postData.post("/add-post", upload.single("File"), auth, async (req, res) => {
   try {
     const fileBuffer = req.file?.buffer;
     const fileSize = req.file?.size;
     const mime = req.file?.mimetype;
 
-    const { _id } = req.userData;
+    const { avatarPath, _id, userName } = req.userData;
 
     if (!fileBuffer) {
       return res.status(400).send({
@@ -85,7 +85,11 @@ postData.post("/add-post", auth, upload.single("File"), async (req, res) => {
         public_id: filePath.public_id,
       },
       postTime,
-      userData: _id,
+      userData: {
+        _id,
+        avatarPath,
+        userName,
+      },
       ...req.body,
     });
 
@@ -113,9 +117,9 @@ postData.patch("/like-posts/:id", auth, async (req, res) => {
     const likedPost = post.isLike.includes(_id);
 
     if (likedPost) {
-      post.isLike.pull(userId); //For removing
+      post.isLike.pull(_id); //For removing
     } else {
-      post.isLike.push(userId); //For adding
+      post.isLike.push(_id); //For adding
     }
 
     await post.save();
@@ -153,8 +157,8 @@ postData.delete("/delete-post/:id", auth, async (req, res) => {
 
 postData.patch(
   "/update-post/:id",
-  auth,
   upload.single("File"),
+  auth,
   async (req, res) => {
     try {
       const id = req.params.id;

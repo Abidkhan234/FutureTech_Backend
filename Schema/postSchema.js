@@ -8,6 +8,26 @@ const filePathSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const userDataSchema = new mongoose.Schema(
+  {
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    avatarPath: {
+      type: String,
+      default: "",
+    },
+    userName: {
+      type: String,
+      default: "",
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
 const postSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -32,11 +52,7 @@ const postSchema = new mongoose.Schema({
     },
   ],
 
-  userData: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
+  userData: userDataSchema,
 });
 
 const blogPost = mongoose.model("blogPost", postSchema);
