@@ -12,7 +12,7 @@ userData.post("/register", upload.single("avatar"), async (req, res) => {
   try {
     const fileBuffer = req.file?.buffer;
     const fileSize = req.file?.size;
-    const mime = req.file.mimetype;
+    const mime = req.file?.mimetype;
 
     if (fileSize && fileSize > 1 * 1024 * 1024) {
       return res
